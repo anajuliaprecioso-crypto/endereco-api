@@ -22,12 +22,9 @@ Projeto desenvolvido em Kotlin que realiza a busca de informações de um CEP ut
 - Kotlin
 - IntelliJ IDEA
 - API ViaCEP
-- (adicione outras, se tiver usado, como Retrofit, Ktor, etc)
 
 ---
 
 ## 📡 Como funciona
 
 O usuário informa um CEP, e o sistema faz uma requisição para a API e retorna os dados correspondentes.
-
-Exemplo:
