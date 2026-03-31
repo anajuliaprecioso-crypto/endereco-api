@@ -1,0 +1,277 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Busca de CEP</title>
+    <style>
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+
+        body {
+            font-family: 'Segoe UI', sans-serif;
+            background: #f0f2f5;
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            padding: 40px 16px;
+        }
+
+        h1 {
+            font-size: 28px;
+            font-weight: 700;
+            color: #1a1a2e;
+            margin-bottom: 8px;
+        }
+
+        .subtitle {
+            font-size: 14px;
+            color: #666;
+            margin-bottom: 32px;
+        }
+
+        .card {
+            background: white;
+            border-radius: 16px;
+            padding: 32px;
+            width: 100%;
+            max-width: 560px;
+            box-shadow: 0 4px 24px rgba(0,0,0,0.08);
+            margin-bottom: 24px;
+        }
+
+        .input-row {
+            display: flex;
+            gap: 10px;
+        }
+
+        input[type="text"] {
+            flex: 1;
+            padding: 12px 16px;
+            border: 1.5px solid #e0e0e0;
+            border-radius: 10px;
+            font-size: 15px;
+            outline: none;
+            transition: border-color .2s;
+        }
+
+        input[type="text"]:focus { border-color: #4f46e5; }
+
+        button.btn-buscar {
+            padding: 12px 24px;
+            background: #4f46e5;
+            color: white;
+            border: none;
+            border-radius: 10px;
+            font-size: 15px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: background .2s;
+        }
+
+        button.btn-buscar:hover { background: #4338ca; }
+        button.btn-buscar:disabled { background: #a5b4fc; cursor: not-allowed; }
+
+        .resultado {
+            margin-top: 20px;
+            padding: 16px;
+            background: #f0fdf4;
+            border: 1.5px solid #86efac;
+            border-radius: 10px;
+            display: none;
+        }
+
+        .resultado p { font-size: 14px; color: #166534; line-height: 1.8; }
+        .resultado strong { color: #14532d; }
+
+        .erro {
+            margin-top: 20px;
+            padding: 16px;
+            background: #fef2f2;
+            border: 1.5px solid #fca5a5;
+            border-radius: 10px;
+            font-size: 14px;
+            color: #991b1b;
+            display: none;
+        }
+
+        .card h2 {
+            font-size: 16px;
+            font-weight: 600;
+            color: #1a1a2e;
+            margin-bottom: 16px;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 13px;
+        }
+
+        thead th {
+            text-align: left;
+            padding: 8px 10px;
+            background: #f8f9fa;
+            color: #555;
+            font-weight: 600;
+            border-bottom: 1.5px solid #e0e0e0;
+        }
+
+        tbody tr { border-bottom: 1px solid #f0f0f0; transition: background .15s; }
+        tbody tr:hover { background: #fafafa; }
+
+        tbody td { padding: 10px; color: #333; }
+
+        .btn-del {
+            padding: 4px 12px;
+            background: transparent;
+            border: 1.5px solid #fca5a5;
+            border-radius: 6px;
+            color: #dc2626;
+            font-size: 12px;
+            cursor: pointer;
+            transition: all .15s;
+        }
+
+        .btn-del:hover { background: #fef2f2; }
+
+        .vazio {
+            text-align: center;
+            padding: 24px;
+            color: #aaa;
+            font-size: 13px;
+        }
+
+        .loading { color: #4f46e5; font-size: 13px; margin-top: 12px; display: none; }
+    </style>
+</head>
+<body>
+
+<h1>Busca de CEP</h1>
+<p class="subtitle">Consulta endereços via ViaCEP e salva no banco de dados</p>
+
+<div class="card">
+    <div class="input-row">
+        <input type="text" id="cep-input" placeholder="Digite o CEP (ex: 01310-100)" maxlength="9">
+        <button class="btn-buscar" onclick="buscarCep()">Buscar</button>
+    </div>
+    <p class="loading" id="loading">Buscando...</p>
+    <div class="resultado" id="resultado">
+        <p>
+            <strong>CEP:</strong> <span id="r-cep"></span><br>
+            <strong>Logradouro:</strong> <span id="r-logradouro"></span><br>
+            <strong>Bairro:</strong> <span id="r-bairro"></span><br>
+            <strong>Cidade:</strong> <span id="r-cidade"></span><br>
+            <strong>UF:</strong> <span id="r-uf"></span>
+        </p>
+    </div>
+    <div class="erro" id="erro"></div>
+</div>
+
+<div class="card">
+    <h2>Endereços salvos</h2>
+    <table>
+        <thead>
+        <tr>
+            <th>CEP</th>
+            <th>Logradouro</th>
+            <th>Cidade</th>
+            <th>UF</th>
+            <th></th>
+        </tr>
+        </thead>
+        <tbody id="tabela-body">
+        <tr><td colspan="5" class="vazio">Nenhum endereço salvo ainda.</td></tr>
+        </tbody>
+    </table>
+</div>
+
+<script>
+    const API = 'http://localhost:8080/api/enderecos';
+
+    async function buscarCep() {
+        const cep = document.getElementById('cep-input').value.trim();
+        if (!cep) return;
+
+        const btn = document.querySelector('.btn-buscar');
+        const loading = document.getElementById('loading');
+        const resultado = document.getElementById('resultado');
+        const erro = document.getElementById('erro');
+
+        btn.disabled = true;
+        loading.style.display = 'block';
+        resultado.style.display = 'none';
+        erro.style.display = 'none';
+
+        try {
+            const res = await fetch(`${API}/buscar-cep`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ cep })
+            });
+
+            if (!res.ok) throw new Error('CEP não encontrado');
+
+            const data = await res.json();
+
+            document.getElementById('r-cep').textContent = data.cep;
+            document.getElementById('r-logradouro').textContent = data.logradouro;
+            document.getElementById('r-bairro').textContent = data.bairro;
+            document.getElementById('r-cidade').textContent = data.cidade;
+            document.getElementById('r-uf').textContent = data.uf;
+
+            resultado.style.display = 'block';
+            document.getElementById('cep-input').value = '';
+            carregarEnderecos();
+
+        } catch (e) {
+            erro.textContent = 'CEP inválido ou não encontrado. Tente novamente.';
+            erro.style.display = 'block';
+        } finally {
+            btn.disabled = false;
+            loading.style.display = 'none';
+        }
+    }
+
+    async function carregarEnderecos() {
+        const res = await fetch(API);
+        const lista = await res.json();
+        const tbody = document.getElementById('tabela-body');
+
+        if (lista.length === 0) {
+            tbody.innerHTML = '<tr><td colspan="5" class="vazio">Nenhum endereço salvo ainda.</td></tr>';
+            return;
+        }
+
+        tbody.innerHTML = lista.map(e => `
+        <tr>
+          <td>${e.cep}</td>
+          <td>${e.logradouro}</td>
+          <td>${e.cidade}</td>
+          <td>${e.uf}</td>
+          <td><button class="btn-del" onclick="deletar(${e.id})">Deletar</button></td>
+        </tr>
+      `).join('');
+    }
+
+    async function deletar(id) {
+        await fetch(`${API}/${id}`, { method: 'DELETE' });
+        carregarEnderecos();
+    }
+
+    document.getElementById('cep-input').addEventListener('keydown', e => {
+        if (e.key === 'Enter') buscarCep();
+    });
+
+    carregarEnderecos();
+</script>
+
+</body>
+</html>
+```
+
+**Passo 2 — Rodar e acessar:**
+
+Salve com `Ctrl+S`, rode com `Shift+F10` e acesse no navegador:
+```
+http://localhost:8080/index.html
